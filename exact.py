@@ -40,13 +40,13 @@ def get_cardinality(column_data):
 
 
 #预处理 将长整型拆分，带分号的拆分
-def pretreatment(data):
+def pretreatment(data, file_name):
     global json_size
     global df_preprocessed
 
     dtype_dict = data.dtypes.to_dict()
     dtype_dict = {col: str(dtype) for col, dtype in data.dtypes.to_dict().items()}
-    dict_filename = 'json/city0-4G-1M-dtypes.json'
+    dict_filename = f'json/{file_name}/{file_name}-dtypes.json'
     with open(dict_filename, 'w') as json_file:
         json.dump(dtype_dict, json_file)
     json_size = json_size + os.path.getsize(dict_filename)
@@ -57,7 +57,7 @@ def pretreatment(data):
     for column_name in data.columns:
         column_data = data[column_name]
         cardinal = get_cardinality(column_data)
-        if pd.api.types.is_numeric_dtype(column_data):
+        if pd.api.types.is_integer_dtype(column_data):
             # 判断基数是否大于数据总数的50%且数值长度普遍大于6
             if cardinal > 0.5 * len(column_data) and column_data.astype(str).str.len().mean() > 5:
                 column_data = column_data.astype(str)
@@ -75,7 +75,7 @@ def pretreatment(data):
                 df_preprocessed = pd.concat([df_preprocessed, column_data], axis=1)
     
     print(large_integer_column)
-    df_preprocessed.to_csv(f'{file_name}-preprocessed.csv', index=False)
+    df_preprocessed.to_csv(f'preprocessed_data/{file_name}-preprocessed.csv', index=False)
     
         
 
@@ -128,12 +128,12 @@ def compress_column(column_data, output_csv_file, column_name):
             compressed_column.append(value_type(value))
     
     # Step 4: 将压缩后的数据写入CSV文件
-    with open(output_csv_file, mode='w', newline='', encoding='utf-8') as outfile:
-        writer = csv.DictWriter(outfile, fieldnames=[column_name])
-        writer.writeheader()
+    # with open(output_csv_file, mode='w', newline='', encoding='utf-8') as outfile:
+    #     writer = csv.DictWriter(outfile, fieldnames=[column_name])
+    #     writer.writeheader()
         
-        for value in compressed_column:
-            writer.writerow({column_name: value})
+    #     for value in compressed_column:
+    #         writer.writerow({column_name: value})
 
     # print(f"压缩字典: {value_dict}")
     # print(f"压缩后的列数据已存入 {output_csv_file}")
@@ -152,19 +152,19 @@ def get_json_content(compress_type, dict, value):
     json_content["value"] = value
     return json_content
 
-def process_independence_column(colmn):
+def process_independence_column(colmn, file_name):
         global exceptions
         global json_size
         exceptions.append(colmn)
         json_content = get_json_content('no_process', None, None)
                  # 获取 JSON 文件的大小（统计字典json 文件大小）
-        dict_filename = 'json/city0-4G-1M-%s-compress-dict.json' % colmn
+        dict_filename = f'json/{file_name}/{file_name}-%s-compress-dict.json' % colmn
         with open(dict_filename, 'w') as json_file:
             json.dump(json_content, json_file)
         json_size = json_size + os.path.getsize(dict_filename)
 
 #分类处理每一列
-def dict_process(colmn):
+def dict_process(colmn, file_name):
     global df_concatenated 
     global json_size
     global exceptions
@@ -187,7 +187,7 @@ def dict_process(colmn):
     if cardinal == 1: 
         json_content = get_json_content("single_value", None, str(column_data[0]))
         # 获取 JSON 文件的大小（统计字典json 文件大小）
-        dict_filename = 'json/city0-4G-1M-%s-compress-dict.json' % colmn
+        dict_filename = f'json/{file_name}/{file_name}-%s-compress-dict.json' % colmn
         with open(dict_filename, 'w') as json_file:
             json.dump(json_content, json_file)
         json_size = json_size + os.path.getsize(dict_filename)
@@ -196,7 +196,7 @@ def dict_process(colmn):
         return 
     elif cardinal > 100 and not in_large_integer:
 
-        process_independence_column(colmn)
+        process_independence_column(colmn, file_name)
             # print(colmn)
         df_concatenated = pd.concat([df_concatenated, column_df], axis=1)
         return 
@@ -205,14 +205,14 @@ def dict_process(colmn):
 
     #字典压缩
     df, dict, top_8_percentage = compress_column(column_data,f'city0/{file_name}-%s-compress.csv'%colmn, colmn)
-    if(top_8_percentage < 0.3 or (pd.api.types.is_numeric_dtype(column_type) and min_value < 10) or (column_type == 'object' and min_length <= 1)) :
-        process_independence_column(colmn)
+    if(top_8_percentage < 0.3 or (pd.api.types.is_integer_dtype(column_type) and min_value < 10) or (column_type == 'object' and min_length <= 1)) :
+        process_independence_column(colmn, file_name)
         df_concatenated = pd.concat([df_concatenated, column_df], axis=1)
         return 
     
     json_content = get_json_content('dict', dict, None)
     # 获取 JSON 文件的大小（统计字典json 文件大小）
-    dict_filename = 'json/city0-4G-1M-%s-compress-dict.json' % colmn
+    dict_filename = f'json/{file_name}/{file_name}-%s-compress-dict.json' % colmn
     with open(dict_filename, 'w') as json_file:
         json.dump(json_content, json_file)
     json_size = json_size + os.path.getsize(dict_filename)
@@ -222,7 +222,8 @@ def dict_process(colmn):
         df_concatenated = df
     else:
         df_concatenated = pd.concat([df_concatenated, df], axis=1)
-    
+
+
 #处理带分号的列 将里面的数字提取出来
 def extract_process(column_data, column):
     global df_preprocessed
@@ -253,78 +254,90 @@ def extract_process(column_data, column):
 
 
 
+def get_csv_files_without_extension(directory):
+    # 使用glob模块查找目录下所有.csv文件，然后去掉扩展名
+    return [os.path.splitext(os.path.basename(f))[0] for f in glob.glob(f'{directory}/*.csv')]
+
+
 
 if __name__ == "__main__":
 
+    # 示例用法
+    csv_files = get_csv_files_without_extension('data/')
+    print(csv_files)
     #文件路径
-    file_name = 'city0-4G-1M'
-    file_path = f'{file_name}.csv' 
+    for file_name in csv_files:
+        # print(file_path)
+        # file_name = 'city0-4G-1M'
+        file_path = f'data/{file_name}.csv' 
 
-    data = pd.read_csv(file_path)
-    #大整数的列集合
-    large_integer_column = []
-    #统计字典的大小
-    json_size = 0
-    #未处理的列集合
-    exceptions = []
+        data = pd.read_csv(file_path)
+        output_dir = os.path.join(f'json/{file_name}')
+        os.makedirs(output_dir, exist_ok=True)
+        #大整数的列集合
+        large_integer_column = []
+        #统计字典的大小
+        json_size = 0
+        #未处理的列集合
+        exceptions = []
 
-    #最终df
-    df_concatenated  = pd.DataFrame()
-    df_preprocessed  = pd.DataFrame()
-    
-    pretreatment(data)
-    #分类对列进行字典处理
+        #最终df
+        df_concatenated  = pd.DataFrame()
+        df_preprocessed  = pd.DataFrame()
+        
+        pretreatment(data, file_name)
+        #分类对列进行字典处理
 
-    
-    columns_list = df_preprocessed.columns.tolist()
-    with open('json/city0-4G-1M-preprocessed-columns_list.json', 'w') as file:
-        json.dump(columns_list, file)
-    for column_name in df_preprocessed.columns:
-        column_data = df_preprocessed[column_name]
-        dict_process(column_name)
-
-
-
-    #生成csv文件便于调试
-    df_concatenated.to_csv(f'{file_name}-compress.csv', index=False)
-
-
-
-    # 假设 df_concatenated 是你的 DataFrame
-    # 例外的列 (未处理的列）
-
-    # 生成 schema，除了例外的列，其他列都设置为 binary 类型
-    fields = []
-    for column in df_concatenated.columns:
-        if column not in exceptions:
-            # 保留原来的数据类型
-            dtype = pa.binary()
-            fields.append(pa.field(column, dtype))
-
-    # 创建 schema
-    schema = pa.schema(fields)
-
-    #存入parquet
-    # schema = pa.schema([pa.field(column, pa.binary()) for column in df_concatenated.columns])
-    table = pa.Table.from_pandas(df_concatenated, schema=schema)
-    pq.write_table(table, f'{file_name}-compress.parquet', version='2.0')
-    data.to_parquet(f'{file_name}.parquet', index=False)
-
-    csv_size = os.path.getsize(f'{file_name}.csv')
-    
-    #没压缩时候的parquet大小
-    o_parquet_size = os.path.getsize(f'{file_name}.parquet')
-    #压缩后parquet大小
-    c_parquet_size = os.path.getsize(f'{file_name}-compress.parquet')
+        
+        columns_list = df_preprocessed.columns.tolist()
+        with open(f'json/{file_name}/{file_name}-preprocessed-columns_list.json', 'w') as file:
+            json.dump(columns_list, file)
+        for column_name in df_preprocessed.columns:
+            column_data = df_preprocessed[column_name]
+            dict_process(column_name, file_name)
 
 
 
-    print(file_name)
-    Parquet_compression_ratio = o_parquet_size / csv_size 
-    c_Parquet_compression_ratio = c_parquet_size / csv_size 
-    print(f"CSV 文件大小: {csv_size} 字节")
-    print(f"Parquet 文件大小: {o_parquet_size} 字节")
-    print(f"Parquet压缩率: {Parquet_compression_ratio}")
-    print(f"压缩后 Parquet 文件大小: {c_parquet_size} 字节")
-    print(f"压缩后压到Parquet压缩率: {c_Parquet_compression_ratio}")
-    print(f"压缩后字典json大小: {json_size}字节")
+        #生成csv文件便于调试
+        df_concatenated.to_csv(f'compress_data/csv/{file_name}-compress.csv', index=False)
+
+
+
+        # 假设 df_concatenated 是你的 DataFrame
+        # 例外的列 (未处理的列）
+
+        # 生成 schema，除了例外的列，其他列都设置为 binary 类型
+        fields = []
+        for column in df_concatenated.columns:
+            if column not in exceptions:
+                # 保留原来的数据类型
+                dtype = pa.binary()
+                fields.append(pa.field(column, dtype))
+
+        # 创建 schema
+        schema = pa.schema(fields)
+
+        #存入parquet
+        # schema = pa.schema([pa.field(column, pa.binary()) for column in df_concatenated.columns])
+        table = pa.Table.from_pandas(df_concatenated, schema=schema)
+        pq.write_table(table, f'compress_data/parquet/{file_name}-compress.parquet', version='2.0')
+        data.to_parquet(f'{file_name}.parquet', index=False)
+
+        csv_size = os.path.getsize(f'data/{file_name}.csv')
+        
+        #没压缩时候的parquet大小
+        o_parquet_size = os.path.getsize(f'{file_name}.parquet')
+        #压缩后parquet大小
+        c_parquet_size = os.path.getsize(f'compress_data/parquet/{file_name}-compress.parquet')
+
+
+
+        print(file_name)
+        Parquet_compression_ratio = o_parquet_size / csv_size 
+        c_Parquet_compression_ratio = c_parquet_size / csv_size 
+        print(f"CSV 文件大小: {csv_size} 字节")
+        print(f"Parquet 文件大小: {o_parquet_size} 字节")
+        print(f"Parquet压缩率: {Parquet_compression_ratio}")
+        print(f"压缩后 Parquet 文件大小: {c_parquet_size} 字节")
+        print(f"压缩后压到Parquet压缩率: {c_Parquet_compression_ratio}")
+        print(f"压缩后字典json大小: {json_size}字节")

@@ -153,7 +153,7 @@ def totable(table,namelist,jsonlist,n) :
         else :
             newtable.append(table[x])
         #print(len(newtable[-1]))
-    print(newtable[1])
+    #print(newtable[1])
     return newtable
 
 
@@ -211,7 +211,7 @@ if __name__ == '__main__' :
     table = ReadInP(filename)
 
     table = Transpose(table)
-    print(table[23])
+    #print(table[23])
     che = 'city0-4G-1M.csv'
     che = ReadInP(che)[1:]
     che = Transpose(che)
@@ -229,8 +229,8 @@ if __name__ == '__main__' :
     newtable = Transpose(newtable)
 
     newtable = [namelist]+newtable
-
-    WriterToExcel(prename+'uncompress.csv',newtable)
+    name = input('请输入解压缩后的名称:')
+    WriterToExcel(name,newtable)
 
 
 
