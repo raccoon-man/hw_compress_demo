@@ -61,6 +61,7 @@ def pretreatment(data, file_name):
             # 判断基数是否大于数据总数的50%且数值长度普遍大于6
             if cardinal > 0.5 * len(column_data) and column_data.astype(str).str.len().mean() > 5:
                 column_data = column_data.astype(str)
+                print(file_name,column_name)
                 dfn = segment.SegmentExecute(column_data, column_name)
                 for column_name in dfn.columns:
                     large_integer_column.append(column_name)
@@ -102,15 +103,14 @@ def compress_column(column_data, output_csv_file, column_name):
     frequency = Counter(non_null_data)
 
     # Step 3: 找出出现频率最高的前八个元素
-    most_common = frequency.most_common(16)
+    most_common = frequency.most_common(8)
     value_dict = {value: idx for idx, (value, _) in enumerate(most_common)}
     
     # 计算前8个元素占总元素的比例
     top_8_count = sum(count for _, count in most_common)
     total_count = len(non_null_data) if non_null_data else 1  # 避免除零错误
     top_8_percentage = top_8_count / total_count
-    if(top_8_percentage < 0.3) :
-        return None, None, top_8_percentage
+
     # 为null值分配特定的编码值
     null_encoding = -1 if value_type is int else '-1'
 
@@ -195,7 +195,8 @@ def dict_process(colmn, file_name):
         #不处理只有一个值的列
         return 
     elif cardinal > 100 and not in_large_integer:
-
+        print(colmn, cardinal)
+        print(exceptions)
         process_independence_column(colmn, file_name)
             # print(colmn)
         df_concatenated = pd.concat([df_concatenated, column_df], axis=1)
@@ -205,10 +206,7 @@ def dict_process(colmn, file_name):
 
     #字典压缩
     df, dict, top_8_percentage = compress_column(column_data,f'city0/{file_name}-%s-compress.csv'%colmn, colmn)
-    if(top_8_percentage < 0.3 or (pd.api.types.is_integer_dtype(column_type) and min_value < 10) or (column_type == 'object' and min_length <= 1)) :
-        process_independence_column(colmn, file_name)
-        df_concatenated = pd.concat([df_concatenated, column_df], axis=1)
-        return 
+
     
     json_content = get_json_content('dict', dict, None)
     # 获取 JSON 文件的大小（统计字典json 文件大小）
@@ -308,19 +306,34 @@ if __name__ == "__main__":
 
         # 生成 schema，除了例外的列，其他列都设置为 binary 类型
         fields = []
-        for column in df_concatenated.columns:
-            if column not in exceptions:
-                # 保留原来的数据类型
-                dtype = pa.binary()
-                fields.append(pa.field(column, dtype))
+        # print('exceptions')
+        # print(exceptions)
+        # for column in df_concatenated.columns:
+        #     if column not in exceptions:
+        #         # 保留原来的数据类型
+        #         dtype = pa.binary()
+        #         fields.append(pa.field(column, dtype))
+        #     else:
+        #         dtype = df_concatenated[column].dtype
+        #         if dtype == 'object':
+        #             dtype = pa.string()
+        #         elif dtype == 'int64':
+        #             dtype = pa.int64()
+        #         elif dtype == 'float64':
+        #             dtype = pa.float64()
+        #         else:
+        #             raise ValueError(f"Unsupported dtype: {dtype}")
+        #         fields.append(pa.field(column, dtype))
 
+            
         # 创建 schema
         schema = pa.schema(fields)
-
+        print(schema)
         #存入parquet
         # schema = pa.schema([pa.field(column, pa.binary()) for column in df_concatenated.columns])
-        table = pa.Table.from_pandas(df_concatenated, schema=schema)
-        pq.write_table(table, f'compress_data/parquet/{file_name}-compress.parquet', version='2.0')
+        # table = pa.Table.from_pandas(df_concatenated, schema=schema)
+        # pq.write_table(table, f'compress_data/parquet/{file_name}-compress.parquet', version='2.0')
+        df_concatenated.to_parquet(f'compress_data/parquet/{file_name}-compress.parquet', index=False)
         data.to_parquet(f'{file_name}.parquet', index=False)
 
         csv_size = os.path.getsize(f'data/{file_name}.csv')

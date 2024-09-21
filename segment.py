@@ -30,7 +30,6 @@ def SegmentFind(l) :
         if len(x) < 32 and n - i >= 2:
             choose.append([len(x),len(y) / (10 ** i),i])
     choose.sort(key = lambda x : -x[0])
-    #print(choose)
     return choose[0]
 
 
