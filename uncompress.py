@@ -1,10 +1,12 @@
 import csv
+import re
 
 import numpy as np
+import pandas as pd
 
 import json
 import os
-
+import re
 import fastparquet
 
 
@@ -16,9 +18,14 @@ def parquetTOcsv(filename,f) :
     # 将 DataFrame 保存为 CSV 文件
     df.to_csv(f, index=False)
 
+def parquetTOlist(filename) :
+    pf = fastparquet.ParquetFile(filename)
+    df = pf.to_pandas()
+    #df = df.values.tolist()
+    return df
 
 def unparquet(filename) :
-    filename = 'city0-4G-1M-compress.parquet'
+    #filename = 'city0-4G-1M-compress.parquet'
     #prename = filename[:16]
     parquetTOcsv(filename, filename[:-7] + 'csv')
 
@@ -48,7 +55,7 @@ def uncompressexe(table):
         pass
 def creatjsondic(path) :
     dic = {}
-    contents = os.listdir(jsonlist)
+    contents = os.listdir(path)
     for i in contents :
         path1 = os.path.join(path,i)
         s = i.split('-')
@@ -70,6 +77,10 @@ def columntodata(column,dic) :
 def tabletodic(table) :
     dic = {}
     for i,x in enumerate(table) :
+        #ll = []
+        #for xx in x[1:] :
+        #    ll.append(int(xx))
+        #dic[x[0]] = ll
         dic[x[0]] = x[1:]
     return dic
 
@@ -80,6 +91,7 @@ def union(l) :
         t = ''.join(x)
         if t.isdigit() :
             t = str(int(t))
+
         if t[0] == ';' :
             t = ''
         ans.append(t)
@@ -139,6 +151,7 @@ def trandic(dic) :
 def totable(table,namelist,jsonlist,n) :
     newtable = []
     for _,x in enumerate(namelist) :
+        #print(x)
         dic = jsonlist[x]
         way = dic["compress_type"]
         if way == "single_value":
@@ -171,6 +184,7 @@ def WriterToExcel(FileName,outcomplete,) :
 
     np.savetxt(FileName, outcomplete, fmt='%s', delimiter=',', comments='')
 
+
     #print("已写入csv", FileName)
     return
 
@@ -199,8 +213,97 @@ def check(a,b) :
                     break
     return
 
+def trantableint(t) :
+    ans = []
+    for i,x in enumerate(t):
+        ans.append(tranint(x))
+    return ans
+
+def todo(filename ) :
+    csvvpath = filename[:-7]+'csv'
+    parquetTOcsv(filename,csvvpath)
+    table = ReadInP(csvvpath)
+    #os.remove(csvvpath)
+    table = Transpose(table)
+    #print(table)
+    prename = filename[:12]
+    #table = Transpose(table)
+    n = len(table[0]) - 1
+    table = tabletodic(table)
+    #print(table)
+
+    jsonlist = 'json/'+filename.split('/')[-1][:-17]
+    #print(jsonlist)
+    jsonlist = creatjsondic(jsonlist)
+    #print(jsonlist)
+    #namelist = 'json/city0-4G-1M-preprocessed-columns_list.json'
+    namelist = 'json/'+filename.split('/')[-1][:-17]+'/'+filename.split('/')[-1][:-16]+'preprocessed-columns_list.json'
+    #print(namelist)
+    namelist = jsontodic(namelist)
+    newtable = totable(table, namelist, jsonlist, n)
+    #print(newtable)
+    newtable = trantableint(newtable)
+    newtable, namelist = unioncolumn(namelist, newtable)
+    #check(che, newtable)
+    che = 'data/city0-4G-1M.csv'
+    che = ReadInP(che)[1:]
+    che = Transpose(che)
+    check(che, newtable)
+    newtable = Transpose(newtable)
+
+    newtable = [namelist] + newtable
+    name = input('请输入解压缩后的名称:')
+    WriterToExcel(name, newtable)
+
+def is_float(s):
+    # 正则表达式匹配小数
+    t = s.split('.')
+    if len(t) != 2 :
+        return 0
+    if  t[1].isdigit() :
+
+        if t[0].isdigit() :
+            return 1
+        if t[0][0] == '-' and t[0][1:].isdigit() :
+            return 1
+
+
+
+    return 0
+
+def tranint(l) :
+    ans = []
+    for i,x in enumerate(l) :
+        if is_float(x) :
+            ttt = str(int(float(x)))
+            ans.append(ttt)
+        elif x == 'nan' :
+            ans.append('')
+        else:
+            ans.append(x)
+    return ans
+
+def todo2() :
+    t1 = "compress_data/parquet/city0-4G-1M-compress.csv"
+    t2 = "compress_data/parquet/city0-4G-1M-compress1.csv"
+    table1 = ReadInP(t1)
+    # os.remove(csvvpath)
+    table1 = Transpose(table1)
+    tb1 = tabletodic(table1)
+    table2 = ReadInP(t2)
+    # os.remove(csvvpath)
+    table2 = Transpose(table2)
+    tb2 = tabletodic(table2)
+    dic = {}
+    for k,v in tb2.items() :
+        if tb1.get(k,-1) == -1 :
+            dic[k] = v
+    dfn = pd.DataFrame({k:v for k,v in dic.items()})
+    dfn.to_csv('output.csv', index=True)
+
+
 if __name__ == '__main__' :
-    #filename = 'city0-4G-1M-compress.parquet'
+    '''#filename = 'city0-4G-1M-compress.parquet'
     #prename = filename[:16]
     #unparquet(filename)
     filename = 'city0-4G-1M-compress.csv'
@@ -230,7 +333,11 @@ if __name__ == '__main__' :
 
     newtable = [namelist]+newtable
     name = input('请输入解压缩后的名称:')
-    WriterToExcel(name,newtable)
+    WriterToExcel(name,newtable)'''
+    #todo2()
+    todo('compress_data/parquet/city0-4G-1M-compress.parquet')
+    #parquetTOcsv('compress_data/parquet/city0-4G-1M-compress.parquet','compress_data/parquet/city0-4G-1M-compress1.csv')
+    #print(is_float('-103.0'))
 
 
 

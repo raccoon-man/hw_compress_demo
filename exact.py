@@ -15,6 +15,10 @@ import segment
 import string
 
 
+
+
+
+
 def get_cardinality(column_data):
     """
     计算列数据的基数（唯一值的数量），包括空值、None、'null' 和 NaN 的处理。
@@ -30,7 +34,7 @@ def get_cardinality(column_data):
         column_data = pd.Series(column_data)
     
     # 去除空值、None、'null' 和 NaN 的影响
-    unique_values = set(column_data.dropna().replace(['', 'null'], None).drop_duplicates())
+    unique_values = set(column_data.replace(['', 'null'], None).drop_duplicates())
 
     # 如果唯一值集合为空，说明全是空值、None、'null' 或 NaN，将基数设置为 1
     if len(unique_values) == 0:
@@ -58,10 +62,11 @@ def pretreatment(data, file_name):
         column_data = data[column_name]
         cardinal = get_cardinality(column_data)
         if pd.api.types.is_integer_dtype(column_data):
+            min_value = column_data.min()
             # 判断基数是否大于数据总数的50%且数值长度普遍大于6
-            if cardinal > 0.5 * len(column_data) and column_data.astype(str).str.len().mean() > 5:
+            if cardinal > 0.3 * len(column_data) and min_value > 0:
                 column_data = column_data.astype(str)
-                print(file_name,column_name)
+                # print(file_name,column_name,cardinal)
                 dfn = segment.SegmentExecute(column_data, column_name)
                 for column_name in dfn.columns:
                     large_integer_column.append(column_name)
@@ -75,10 +80,9 @@ def pretreatment(data, file_name):
             else : 
                 df_preprocessed = pd.concat([df_preprocessed, column_data], axis=1)
     
-    print(large_integer_column)
+    # print(large_integer_column)
     df_preprocessed.to_csv(f'preprocessed_data/{file_name}-preprocessed.csv', index=False)
     
-        
 
 #字典压缩
 def compress_column(column_data, output_csv_file, column_name):
@@ -102,8 +106,8 @@ def compress_column(column_data, output_csv_file, column_name):
     non_null_data = [value for value in column_data if value not in ('', None, 'null')]
     frequency = Counter(non_null_data)
 
-    # Step 3: 找出出现频率最高的前八个元素
-    most_common = frequency.most_common(8)
+    # Step 3: 找出出现频率最高的前十六个元素
+    most_common = frequency.most_common(16)
     value_dict = {value: idx for idx, (value, _) in enumerate(most_common)}
     
     # 计算前8个元素占总元素的比例
@@ -126,22 +130,10 @@ def compress_column(column_data, output_csv_file, column_name):
                 compressed_column.append(str(value_dict[value]))  # 使用字符串字典编码
         else:
             compressed_column.append(value_type(value))
-    
-    # Step 4: 将压缩后的数据写入CSV文件
-    # with open(output_csv_file, mode='w', newline='', encoding='utf-8') as outfile:
-    #     writer = csv.DictWriter(outfile, fieldnames=[column_name])
-    #     writer.writeheader()
-        
-    #     for value in compressed_column:
-    #         writer.writerow({column_name: value})
 
-    # print(f"压缩字典: {value_dict}")
-    # print(f"压缩后的列数据已存入 {output_csv_file}")
     df = pd.DataFrame({column_name: compressed_column})
 
-    # print(df)
-    # df.to_parquet('city0/city0-4G-1M-%s-compress.parquet'%column_name, index=False)
-    
+
     return df, value_dict, top_8_percentage
 
 
@@ -163,6 +155,10 @@ def process_independence_column(colmn, file_name):
             json.dump(json_content, json_file)
         json_size = json_size + os.path.getsize(dict_filename)
 
+def contains_integer_range(column_data, lower_bound=0, upper_bound=15):
+    # 使用.apply()方法结合lambda表达式检查每个元素是否在指定范围内
+    return column_data.apply(lambda x: isinstance(x, int) and lower_bound <= x <= upper_bound).any()
+
 #分类处理每一列
 def dict_process(colmn, file_name):
     global df_concatenated 
@@ -174,9 +170,11 @@ def dict_process(colmn, file_name):
     # print(cardinal)
     column_type = df_preprocessed[colmn].dtype
     column_df = pd.DataFrame(column_data)
+    min_value = None
 
-    if(column_type == 'int64'):
-        min_value = column_data.min()
+    contains_range = False
+    if(column_type == 'int32' or column_type == 'int64' or column_type == 'float32' or column_type == 'float64'):
+        contains_range = contains_integer_range(column_data)
     if column_type == 'object':
     # 计算每个字符串的长度
         min_length = df_preprocessed[colmn].str.len().min()
@@ -194,11 +192,10 @@ def dict_process(colmn, file_name):
 
         #不处理只有一个值的列
         return 
-    elif cardinal > 100 and not in_large_integer:
-        print(colmn, cardinal)
-        print(exceptions)
+    elif cardinal >  0.5 * len(column_data) or (contains_range):
+        # print(colmn, cardinal)
+        # print(exceptions)
         process_independence_column(colmn, file_name)
-            # print(colmn)
         df_concatenated = pd.concat([df_concatenated, column_df], axis=1)
         return 
 # or (pd.api.types.is_numeric_dtype(column_type) and min_value < 10) or (column_type == 'object' and min_length <= 1)
@@ -222,7 +219,6 @@ def dict_process(colmn, file_name):
         df_concatenated = pd.concat([df_concatenated, df], axis=1)
 
 
-#处理带分号的列 将里面的数字提取出来
 def extract_process(column_data, column):
     global df_preprocessed
     column_data = column_data.fillna('')
@@ -235,20 +231,33 @@ def extract_process(column_data, column):
 
     # 创建数值列
     df_values = df_split.applymap(lambda x: x if x else None)
-
+    # print(df_values.dtypes)
     # 创建分号列
     df_separators = df_split.applymap(lambda x: ';' if pd.notna(x) else None)
 
-    # 将数值和分号列交替合并
+    # 初始化一个空的DataFrame来存储展开的列
     df_expanded = pd.DataFrame(index=df_values.index)
-    for i in range(df_values.shape[1]):
-        df_expanded[f'{column}_value_{i+1}'] = df_values[i]
-        if i < df_separators.shape[1] - 1:
-            df_expanded[f'{column}_separator_{i+1}'] = df_separators[i]
 
+    # 遍历分割后的列
+    for i in range(df_values.shape[1]):
+        # 处理数值列
+        new_values = []
+        for value in df_values.iloc[:, i]:
+            try:
+                new_values.append(int(value))
+            except (ValueError, TypeError):
+                new_values.append(None)
+        df_expanded[f'{column}_value_{i+1}'] = new_values
+        # 处理分号列，注意分号列比数值列少一列，且跳过最后一个分号
+        if i < df_separators.shape[1] - 1:
+            new_separators = df_separators.iloc[:, i]
+            df_expanded[f'{column}_separator_{i+1}'] = new_separators
 
     # 将展开的列拼接到原数据框中
-    df_preprocessed = pd.concat([df_preprocessed, df_expanded], axis=1)
+    if not df_preprocessed.empty:
+        df_preprocessed = pd.concat([df_preprocessed, df_expanded], axis=1)
+    else:
+        df_preprocessed = df_expanded
 
 
 
@@ -279,21 +288,27 @@ if __name__ == "__main__":
         #未处理的列集合
         exceptions = []
 
+
+        
+
+
         #最终df
         df_concatenated  = pd.DataFrame()
         df_preprocessed  = pd.DataFrame()
+        df_test  = pd.DataFrame()
         
         pretreatment(data, file_name)
         #分类对列进行字典处理
+
 
         
         columns_list = df_preprocessed.columns.tolist()
         with open(f'json/{file_name}/{file_name}-preprocessed-columns_list.json', 'w') as file:
             json.dump(columns_list, file)
+
         for column_name in df_preprocessed.columns:
             column_data = df_preprocessed[column_name]
             dict_process(column_name, file_name)
-
 
 
         #生成csv文件便于调试
@@ -307,12 +322,12 @@ if __name__ == "__main__":
         # 生成 schema，除了例外的列，其他列都设置为 binary 类型
         fields = []
         # print('exceptions')
-        # print(exceptions)
-        # for column in df_concatenated.columns:
-        #     if column not in exceptions:
-        #         # 保留原来的数据类型
-        #         dtype = pa.binary()
-        #         fields.append(pa.field(column, dtype))
+        print(exceptions)
+        for column in df_concatenated.columns:
+            # if column not in exceptions:
+                # 保留原来的数据类型
+                dtype = pa.binary()
+                fields.append(pa.field(column, dtype))
         #     else:
         #         dtype = df_concatenated[column].dtype
         #         if dtype == 'object':
@@ -321,19 +336,25 @@ if __name__ == "__main__":
         #             dtype = pa.int64()
         #         elif dtype == 'float64':
         #             dtype = pa.float64()
+        #         elif dtype == 'int32':
+        #             dtype = pa.int32()
         #         else:
         #             raise ValueError(f"Unsupported dtype: {dtype}")
         #         fields.append(pa.field(column, dtype))
-
+        # # print(exceptions)
             
         # 创建 schema
         schema = pa.schema(fields)
         print(schema)
         #存入parquet
-        # schema = pa.schema([pa.field(column, pa.binary()) for column in df_concatenated.columns])
-        # table = pa.Table.from_pandas(df_concatenated, schema=schema)
-        # pq.write_table(table, f'compress_data/parquet/{file_name}-compress.parquet', version='2.0')
-        df_concatenated.to_parquet(f'compress_data/parquet/{file_name}-compress.parquet', index=False)
+        schema = pa.schema([pa.field(column, pa.binary()) for column in df_concatenated.columns])
+        table = pa.Table.from_pandas(df_concatenated, schema=schema)
+        print(table)
+        pq.write_table(table, 
+                       f'compress_data/parquet/{file_name}-compress.parquet', version='2.0', 
+                        compression='brotli')
+        
+        # df_concatenated.to_parquet(f'compress_data/parquet/{file_name}-compress.parquet', index=False)
         data.to_parquet(f'{file_name}.parquet', index=False)
 
         csv_size = os.path.getsize(f'data/{file_name}.csv')

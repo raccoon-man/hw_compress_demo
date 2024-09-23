@@ -12,7 +12,10 @@ def supply(l) :
             l[i] = '0' * (nnn - len(x)) + x
     return l,nnn
 
-def SegmentFind(l) :
+def find_ner(l) :
+    pass
+
+def SegmentFind(l,n) :
 
 
     l,n = supply(l)
@@ -27,25 +30,48 @@ def SegmentFind(l) :
         y = Counter(temp[1])
         #print("切分点位为切掉后" + str(i) + "位的结果:", " 前半段的基数数量为" + str(len(x)),"后半段的基数数量为" + str(len(y)))
         #print(len(y) / (10 ** i))
-        if len(x) < 32 and n - i >= 2:
+        if len(x) <= 16 and n - i >= 2:
             choose.append([len(x),len(y) / (10 ** i),i])
     choose.sort(key = lambda x : -x[0])
-    return choose[0]
+    return choose[0] if len(choose)>0 else [0,0,0]
 
 
 
 def SegmentExecute(df,columnname):
     # print(df)
-    column = df
-    _,_,point = SegmentFind(column)
+    #print(df)
+    column,n = supply(df)
+    #print(df)
+
+    x,y,point = SegmentFind(column,n)
     #column,_ = supply(column)
     #print(column)
-    c1 = []
-    c2 = []
-    for i,x in enumerate(column) :
-        c1.append(x[:-point])
-        c2.append(x[-point:])
-    #print(c2)
-    dfn = pd.DataFrame({columnname+'_0':c1,columnname+"_1":c2})
-    #print(dfn)
+
+    if point>0 :
+
+
+        c = [[] for i in range(point+1)]
+        for i,x in enumerate(column) :
+
+            c[0].append(int(x[:-point]))
+            tt = x[-point:]
+            for j,y in enumerate(tt) :
+                c[j+1].append(int(y))
+
+
+
+            #print(c2)
+        dfn = pd.DataFrame({columnname+'_'+str(i):c[i] for i in range(len(c))})
+        #print(dfn)
+    else :
+        #print(column)
+        c = [[] for i in range(len(column[0]))]
+        for i, x in enumerate(column):
+
+
+            for j, y in enumerate(x):
+                c[j].append(int(y))
+        dfn = pd.DataFrame({columnname + '_' + str(i): c[i] for i in range(len(c))})
     return dfn
+
+
