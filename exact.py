@@ -301,11 +301,14 @@ if __name__ == "__main__":
         #分类对列进行字典处理
 
 
+        # 假设df_preprocessed是你的DataFrame
+        columns_info = {col: str(df_preprocessed[col].dtype) for col in df_preprocessed.columns}
+
         
         columns_list = df_preprocessed.columns.tolist()
         with open(f'json/{file_name}/{file_name}-preprocessed-columns_list.json', 'w') as file:
             json.dump(columns_list, file)
-
+            
         for column_name in df_preprocessed.columns:
             column_data = df_preprocessed[column_name]
             dict_process(column_name, file_name)
@@ -345,11 +348,11 @@ if __name__ == "__main__":
             
         # 创建 schema
         schema = pa.schema(fields)
-        print(schema)
+        # print(schema)
         #存入parquet
         schema = pa.schema([pa.field(column, pa.binary()) for column in df_concatenated.columns])
-        table = pa.Table.from_pandas(df_concatenated, schema=schema)
-        print(table)
+        table = pa.Table.from_pandas(df_concatenated)
+        # print(table)
         pq.write_table(table, 
                        f'compress_data/parquet/{file_name}-compress.parquet', version='2.0', 
                         compression='brotli')

@@ -53,13 +53,14 @@ def Transpose(l) :
 def uncompressexe(table):
     for i,x in enumerate(table) :
         pass
+
 def creatjsondic(path) :
     dic = {}
     contents = os.listdir(path)
     for i in contents :
         path1 = os.path.join(path,i)
         s = i.split('-')
-        dic[s[3]] = jsontodic(path1)
+        dic[s[4]] = jsontodic(path1)
         #print(path1)
     return dic
 
@@ -151,7 +152,7 @@ def trandic(dic) :
 def totable(table,namelist,jsonlist,n) :
     newtable = []
     for _,x in enumerate(namelist) :
-        #print(x)
+        # print(jsonlist)
         dic = jsonlist[x]
         way = dic["compress_type"]
         if way == "single_value":
@@ -221,6 +222,14 @@ def trantableint(t) :
 
 def todo(filename ) :
     csvvpath = filename[:-7]+'csv'
+    # 使用os.path.splitext()分离文件名和扩展名
+    # 使用os.path.splitext()分离文件名和扩展名
+    file_name_with_extension = os.path.basename(filename)
+    file_name, _ = os.path.splitext(file_name_with_extension)
+
+    # 移除"-compress"后缀
+    extracted_part = file_name.replace('-compress', '')
+
     parquetTOcsv(filename,csvvpath)
     table = ReadInP(csvvpath)
     #os.remove(csvvpath)
@@ -245,14 +254,16 @@ def todo(filename ) :
     newtable = trantableint(newtable)
     newtable, namelist = unioncolumn(namelist, newtable)
     #check(che, newtable)
-    che = 'data/city0-4G-1M.csv'
+    che = f'data/{extracted_part}.csv'
     che = ReadInP(che)[1:]
     che = Transpose(che)
     check(che, newtable)
     newtable = Transpose(newtable)
 
     newtable = [namelist] + newtable
-    name = input('请输入解压缩后的名称:')
+    # name = input('请输入解压缩后的名称:')
+    name = f'decompression_data/{extracted_part}-decompress.csv'
+    print(name)
     WriterToExcel(name, newtable)
 
 def is_float(s):
@@ -335,7 +346,19 @@ if __name__ == '__main__' :
     name = input('请输入解压缩后的名称:')
     WriterToExcel(name,newtable)'''
     #todo2()
-    todo('compress_data/parquet/city0-4G-1M-compress.parquet')
+
+    # 指定要遍历的文件夹路径
+    folder_path = 'compress_data/parquet'
+
+
+
+    for filename in os.listdir(folder_path):
+        if filename.endswith('.parquet'):
+            file_path = os.path.join(folder_path, filename)
+            # 在这里可以对读取到的 Parquet 文件数据进行处理
+            print(f'compress_data/parquet/{filename}')
+            todo(f'compress_data/parquet/{filename}')
+    # todo('compress_data/parquet/city0-4G-1M-16777476-compress.parquet')
     #parquetTOcsv('compress_data/parquet/city0-4G-1M-compress.parquet','compress_data/parquet/city0-4G-1M-compress1.csv')
     #print(is_float('-103.0'))
 
