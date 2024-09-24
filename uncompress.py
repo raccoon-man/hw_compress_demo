@@ -199,24 +199,33 @@ def jsontodic(filename) :
     # 现在data变量包含了JSON文件中的数据，以字典形式表示
     return data
 
-def check(a,b) :
+def check(a,b,namelist) :
     for i,x in enumerate(a) :
 
         if x!=b[i] :
-            print(i)
+            print(namelist[i])
             for j,y in enumerate(x) :
                 if y!=b[i][j] :
                     #print('--')
-                    #print(y)
+                    print(y)
                     #print('**')
-                    #print(b[i][j])
-                    print(y,b[i][j])
+                    print(b[i][j])
+                    #print(y,b[i][j])
                     break
     return
 
-def trantableint(t) :
+def trantableint(t,filename,namelist) :
     ans = []
+    nt = 'json/' + filename.split('/')[-1][:-17] + '/' + filename.split('/')[-1][:-16] + 'dtypes.json'
+    nt = jsontodic(nt)
+
     for i,x in enumerate(t):
+        xx = namelist[i]
+        xx = xx.split('_')
+        xx = "_".join([xx[0],xx[1]])
+        if nt[xx] == 'float64' :
+            ans.append(detelenan(x))
+            continue
         ans.append(tranint(x))
     return ans
 
@@ -251,13 +260,13 @@ def todo(filename ) :
     namelist = jsontodic(namelist)
     newtable = totable(table, namelist, jsonlist, n)
     #print(newtable)
-    newtable = trantableint(newtable)
+    newtable = trantableint(newtable,filename,namelist)
     newtable, namelist = unioncolumn(namelist, newtable)
     #check(che, newtable)
     che = f'data/{extracted_part}.csv'
     che = ReadInP(che)[1:]
     che = Transpose(che)
-    check(che, newtable)
+    check(che, newtable,namelist)
     newtable = Transpose(newtable)
 
     newtable = [namelist] + newtable
@@ -281,6 +290,15 @@ def is_float(s):
 
 
     return 0
+
+def detelenan(l) :
+    ans = []
+    for i, x in enumerate(l):
+        if x == 'nan':
+            ans.append('')
+        else:
+            ans.append(x)
+    return ans
 
 def tranint(l) :
     ans = []
