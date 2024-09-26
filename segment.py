@@ -30,7 +30,7 @@ def SegmentFind(l,n) :
         y = Counter(temp[1])
         #print("切分点位为切掉后" + str(i) + "位的结果:", " 前半段的基数数量为" + str(len(x)),"后半段的基数数量为" + str(len(y)))
         #print(len(y) / (10 ** i))
-        if len(x) <= 16 and n - i >= 2:
+        if len(x) <= 100 and n - i >= 2:
             choose.append([len(x),len(y) / (10 ** i),i])
     choose.sort(key = lambda x : -x[0])
     return choose[0] if len(choose)>0 else [0,0,0]

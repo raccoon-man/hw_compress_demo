@@ -1,7 +1,6 @@
 import pandas as pd
 import fastparquet
 import os
-import matplotlib.pyplot as plt
 import csv
 import struct
 import math
@@ -13,9 +12,22 @@ import pyarrow.parquet as pq
 import json
 import segment
 import string
+import lzma
+import tarfile
 
 
-
+def compress_folder_to_xz(folder_path, output_xz_file):
+    # 使用 tarfile 将文件夹压缩为 tar 文件
+    with tarfile.open(output_xz_file.replace('.xz', '.tar'), 'w') as tar:
+        tar.add(folder_path, arcname=os.path.basename(folder_path))
+    
+    # 使用 lzma 将 tar 文件压缩为 xz 格式
+    with open(output_xz_file.replace('.xz', '.tar'), 'rb') as f_in:
+        with lzma.open(output_xz_file, 'wb') as f_out:
+            f_out.write(f_in.read())
+    
+    # 删除临时的 tar 文件
+    os.remove(output_xz_file.replace('.xz', '.tar'))
 
 
 
@@ -288,8 +300,9 @@ if __name__ == "__main__":
         #未处理的列集合
         exceptions = []
 
-
         
+        part1, part2 = file_name.rsplit('-', 1)
+        print(part1, part2)
 
 
         #最终df
@@ -325,7 +338,7 @@ if __name__ == "__main__":
         # 生成 schema，除了例外的列，其他列都设置为 binary 类型
         fields = []
         # print('exceptions')
-        print(exceptions)
+        # print(exceptions)
         for column in df_concatenated.columns:
             # if column not in exceptions:
                 # 保留原来的数据类型
@@ -358,23 +371,50 @@ if __name__ == "__main__":
                         compression='brotli')
         
         # df_concatenated.to_parquet(f'compress_data/parquet/{file_name}-compress.parquet', index=False)
-        data.to_parquet(f'{file_name}.parquet', index=False)
+        # data.to_parquet(f'{file_name}.parquet', index=False)
 
         csv_size = os.path.getsize(f'data/{file_name}.csv')
         
         #没压缩时候的parquet大小
-        o_parquet_size = os.path.getsize(f'{file_name}.parquet')
+        
+        
+        directory = f'orignal_data/{part1}/'
+        for file in os.listdir(directory):
+            if file.endswith('.parquet'):
+                # 获取文件名（不带扩展名）
+                original_file_name = os.path.splitext(file)[0]
+
+                # 假设文件名中以 '_' 分隔的子串结构，提取某个子串
+                # 例如：'data_2024_info.parquet' -> 提取 '2024'
+                parts = original_file_name.split('_')  # 根据需要选择分隔符
+                if len(parts) > 1:
+                    extracted_part = parts[4]  # 提取第4个子串
+                else:
+                    extracted_part = original_file_name  # 如果没有分隔符，使用整个文件名
+                if(extracted_part == part2) :
+                    parquet_file_path = os.path.join(directory, file)
+                    
+        # print(parquet_file_path)
+        
+        o_parquet_size = os.path.getsize(parquet_file_path)
         #压缩后parquet大小
         c_parquet_size = os.path.getsize(f'compress_data/parquet/{file_name}-compress.parquet')
 
+        json_path = f'json/{file_name}'
+        xz_json_path = f'json/{file_name}-json-compress.xz'
+        compress_folder_to_xz(json_path, xz_json_path)
+        xz_json_size = os.path.getsize(xz_json_path)
 
 
         print(file_name)
         Parquet_compression_ratio = o_parquet_size / csv_size 
-        c_Parquet_compression_ratio = c_parquet_size / csv_size 
+        c_Parquet_compression_ratio = (c_parquet_size + xz_json_size) / csv_size 
         print(f"CSV 文件大小: {csv_size} 字节")
         print(f"Parquet 文件大小: {o_parquet_size} 字节")
         print(f"Parquet压缩率: {Parquet_compression_ratio}")
         print(f"压缩后 Parquet 文件大小: {c_parquet_size} 字节")
-        print(f"压缩后压到Parquet压缩率: {c_Parquet_compression_ratio}")
-        print(f"压缩后字典json大小: {json_size}字节")
+        print(f"字典json大小: {json_size}字节")
+        print(f"xz压缩后字典json大小: {xz_json_size}字节")
+        print(f"json 和 parquet 一起的压缩率: {c_Parquet_compression_ratio}")
+        print(f"最终压缩数据和原parquet压缩率之差: {Parquet_compression_ratio - c_Parquet_compression_ratio}")
+    
