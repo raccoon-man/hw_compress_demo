@@ -61,4 +61,4 @@
   将对应parquet文件放入到orignal_data文件夹中，以orignal_data\city2-5G-2G\格式放入parquet数据，然后先执行transformation_format.py文件，将parquet文件转化为csv文件，在convert_parquet_to_csv('orignal_data/city2-5G-2G')语句中修改路径，最后的csv文件在data文件夹下，后执行compress.py文件，压缩对应csv文件，终端显示压缩数据，json文件夹下会有json中间文件和对应的xz压缩文件
   
   # 四、程序流程图
-  ![alt text](75bfd8e7c6e27814f74d17d5d8d7d99.png)
+  ![alt text](解压缩流程图.png)
