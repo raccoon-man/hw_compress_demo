@@ -39,4 +39,4 @@ def convert_parquet_to_csv(directory):
          
 
 # 示例用法
-convert_parquet_to_csv('orignal_data/city0-4G-1M')
+convert_parquet_to_csv('original_data/city0-4G-1M')

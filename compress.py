@@ -377,8 +377,7 @@ if __name__ == "__main__":
         
         #没压缩时候的parquet大小
         
-        
-        directory = f'orignal_data/{part1}/'
+        directory = f'original_data/{part1}/'
         for file in os.listdir(directory):
             if file.endswith('.parquet'):
                 # 获取文件名（不带扩展名）
