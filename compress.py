@@ -133,7 +133,7 @@ def compress_column(column_data, output_csv_file, column_name):
     # Step 4: 压缩列数据并确保数据类型一致
     compressed_column = []
     for value in column_data:
-        if value in ('', None, 'null'):
+        if pd.isnull(value) or value in ('', 'null'):
             compressed_column.append(null_encoding)  # 编码null值
         elif value in value_dict:
             if value_type is int:
