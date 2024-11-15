@@ -128,7 +128,7 @@ def compress_column(column_data, output_csv_file, column_name):
     top_8_percentage = top_8_count / total_count
 
     # 为null值分配特定的编码值
-    null_encoding = -1 if value_type is int else '-1'
+    null_encoding = None
 
     # Step 4: 压缩列数据并确保数据类型一致
     compressed_column = []
