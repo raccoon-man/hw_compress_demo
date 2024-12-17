@@ -120,8 +120,26 @@ def compress_column(column_data, output_csv_file, column_name):
 
     # Step 3: 找出出现频率最高的前十六个元素
     most_common = frequency.most_common(16)
-    value_dict = {value: idx for idx, (value, _) in enumerate(most_common)}
+    most_common_values = [value for value, _ in most_common]
     
+    # Step 4: 获取列中未出现过的整数（用于字典编码）
+    used_values = set(non_null_data)  # 已出现过的值
+    available_ints = iter(range(1000))  # 从0开始生成整数值，跳过已使用的整数
+
+    # 获取未使用的整数
+    unused_ints = []
+    while len(unused_ints) < 16:
+        potential_int = next(available_ints)
+        if potential_int not in used_values:
+            unused_ints.append(potential_int)
+    # print(column_data)
+    # print(unused_ints)
+    # Step 5: 为频率前16的元素分配未使用的整数编码
+    value_dict = {}
+    for idx, value in enumerate(most_common_values):
+        value_dict[value] = unused_ints[idx]  # 使用未使用的整数编码
+
+
     # 计算前8个元素占总元素的比例
     top_8_count = sum(count for _, count in most_common)
     total_count = len(non_null_data) if non_null_data else 1  # 避免除零错误
@@ -180,18 +198,13 @@ def dict_process(colmn, file_name):
     cardinal = get_cardinality(column_data)
     # print(colmn + ":")
     # print(cardinal)
-    column_type = df_preprocessed[colmn].dtype
+    # column_type = df_preprocessed[colmn].dtype
+    # min_value = None
     column_df = pd.DataFrame(column_data)
-    min_value = None
-
     contains_range = False
-    if(column_type == 'int32' or column_type == 'int64' or column_type == 'float32' or column_type == 'float64'):
-        contains_range = contains_integer_range(column_data)
-    if column_type == 'object':
-    # 计算每个字符串的长度
-        min_length = df_preprocessed[colmn].str.len().min()
 
-    in_large_integer = colmn in large_integer_column
+
+    # in_large_integer = colmn in large_integer_column
 
     #根据基数处理
     if cardinal == 1: 
@@ -366,10 +379,10 @@ if __name__ == "__main__":
         schema = pa.schema([pa.field(column, pa.binary()) for column in df_concatenated.columns])
         table = pa.Table.from_pandas(df_concatenated)
         # print(table)
-        pq.write_table(table, 
-                       f'compress_data/parquet/{file_name}-compress.parquet', version='2.0', 
-                        compression='brotli')
-        
+        # pq.write_table(table, 
+        #                f'compress_data/parquet/{file_name}-compress.parquet', version='2.0', 
+        #                 compression='brotli')
+        fastparquet.write(f'compress_data/parquet/{file_name}-compress.parquet', df_concatenated, compression='brotli')
         # df_concatenated.to_parquet(f'compress_data/parquet/{file_name}-compress.parquet', index=False)
         # data.to_parquet(f'{file_name}.parquet', index=False)
 
