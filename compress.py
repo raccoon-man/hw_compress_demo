@@ -124,8 +124,8 @@ def compress_column(column_data, output_csv_file, column_name):
     
     # Step 4: 获取列中未出现过的整数（用于字典编码）
     used_values = set(non_null_data)  # 已出现过的值
-    available_ints = iter(range(1000))  # 从0开始生成整数值，跳过已使用的整数
-
+    available_ints = iter(range(10000))  # 从0开始生成整数值，跳过已使用的整数
+    # print(column_data)
     # 获取未使用的整数
     unused_ints = []
     while len(unused_ints) < 16:
@@ -387,7 +387,7 @@ if __name__ == "__main__":
         # data.to_parquet(f'{file_name}.parquet', index=False)
 
         csv_size = os.path.getsize(f'data/{file_name}.csv')
-        
+        c_csv_size = os.path.getsize(f'compress_data/csv/{file_name}-compress.csv')
         #没压缩时候的parquet大小
         
         directory = f'original_data/{part1}/'
@@ -422,11 +422,13 @@ if __name__ == "__main__":
         Parquet_compression_ratio = o_parquet_size / csv_size 
         c_Parquet_compression_ratio = (c_parquet_size + xz_json_size) / csv_size 
         print(f"CSV 文件大小: {csv_size} 字节")
-        print(f"Parquet 文件大小: {o_parquet_size} 字节")
-        print(f"Parquet压缩率: {Parquet_compression_ratio}")
-        print(f"压缩后 Parquet 文件大小: {c_parquet_size} 字节")
-        print(f"字典json大小: {json_size}字节")
-        print(f"xz压缩后字典json大小: {xz_json_size}字节")
-        print(f"json 和 parquet 一起的压缩率: {c_Parquet_compression_ratio}")
-        print(f"最终压缩数据和原parquet压缩率之差: {Parquet_compression_ratio - c_Parquet_compression_ratio}")
+        # print(f"Parquet 文件大小: {o_parquet_size} 字节")
+        print(f"压缩后的csv大小: {c_csv_size} 字节")
+        print(f"压缩后的csv压缩率: {c_csv_size / csv_size}")
+        # print(f"Parquet压缩率: {Parquet_compression_ratio}")
+        # print(f"压缩后 Parquet 文件大小: {c_parquet_size} 字节")
+        # print(f"字典json大小: {json_size}字节")
+        # print(f"xz压缩后字典json大小: {xz_json_size}字节")
+        # print(f"json 和 parquet 一起的压缩率: {c_Parquet_compression_ratio}")
+        # print(f"最终压缩数据和原parquet压缩率之差: {Parquet_compression_ratio - c_Parquet_compression_ratio}")
     
