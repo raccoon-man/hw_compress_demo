@@ -1,6 +1,9 @@
 import pandas as pd
 from collections import Counter
 
+from pandas.core.interchange.dataframe_protocol import DataFrame
+
+
 def supply(l) :
     # print(l)
     nl = list(map(int, l))
@@ -30,7 +33,7 @@ def SegmentFind(l,n) :
         y = Counter(temp[1])
         #print("切分点位为切掉后" + str(i) + "位的结果:", " 前半段的基数数量为" + str(len(x)),"后半段的基数数量为" + str(len(y)))
         #print(len(y) / (10 ** i))
-        if len(x) <= 100 and n - i >= 2:
+        if len(x) <= 16 and n - i >= 2:
             choose.append([len(x),len(y) / (10 ** i),i])
     choose.sort(key = lambda x : -x[0])
     return choose[0] if len(choose)>0 else [0,0,0]
@@ -46,7 +49,22 @@ def SegmentExecute(df,columnname):
     x,y,point = SegmentFind(column,n)
     #column,_ = supply(column)
     #print(column)
+    if point > 0 :
+        c = [[],[]]
+        for i, x in enumerate(column):
 
+            xx1 = int(x[:-point])
+            xx2 = int(x[-point:])
+            c[0].append(xx1)
+            c[1].append(xx2)
+
+            # print(c2)
+        dfn = pd.DataFrame({columnname + '_' + str(i): c[i] for i in range(len(c))})
+    else :
+        dfn = pd.DataFrame({columnname:df})
+        # print(dfn)
+    print(dfn)
+    '''
     if point>0 :
 
 
@@ -72,6 +90,13 @@ def SegmentExecute(df,columnname):
             for j, y in enumerate(x):
                 c[j].append(int(y))
         dfn = pd.DataFrame({columnname + '_' + str(i): c[i] for i in range(len(c))})
+    '''
     return dfn
+
+
+if __name__ == "__main__" :
+    b = ['3253456435325','56355464354','3443']
+    a = ['323232323','32323567','32323789']
+    SegmentExecute(b,'a')
 
 
