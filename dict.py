@@ -356,7 +356,7 @@ def int_to_ascii_key(n, base_chars=BASE_CHARS):
     encoded = ''
     while n > 0:
         n, rem = divmod(n, base)
-        encoded = base_chars[rem] + encoded
+        encoded = base_chars[rem - 1] + encoded
     return encoded
 
 def compress_column(column_data, output_csv_file, column_name, top_n):
