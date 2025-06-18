@@ -33,7 +33,7 @@ def process_special_values(data, file_name, total_json):
         DataFrame: 处理后的数据
     """
     # 记录特殊大整数替换的列
-    large_int_dict = {}
+    large_int_columns = []
     # 记录空值替换的信息
     null_value_dict = {}
 
@@ -47,14 +47,7 @@ def process_special_values(data, file_name, total_json):
             str_data = column_data.astype(str)
             if (str_data == '65535').any() or (str_data == '4294967295').any() or (str_data == '2147483647').any():
                 # 记录这个列进行了大整数替换
-                replacements = {}
-                if (str_data == '65535').any():
-                    replacements['65535'] = '-1'
-                if (str_data == '4294967295').any():
-                    replacements['4294967295'] = '-1'
-                if (str_data == '2147483647').any():
-                    replacements['2147483647'] = '1'
-                large_int_dict[column_name] = replacements
+                large_int_columns.append(column_name)
                 
                 # 执行替换
                 column_data = column_data.replace({
@@ -84,8 +77,8 @@ def process_special_values(data, file_name, total_json):
             data[column_name] = column_data.fillna(replacement_value)
 
     # 将特殊大整数替换信息添加到 total_json
-    if large_int_dict:
-        total_json['large_int_replacements'] = large_int_dict
+    if large_int_columns:
+        total_json['large_int_columns'] = large_int_columns
 
     # 将空值替换信息添加到 total_json
     if null_value_dict:
@@ -191,7 +184,7 @@ if __name__ == "__main__":
         total_json['single'] = []
         total_json['no'] = []
         total_json['null_values'] = {}  # 空值替换信息的字典
-        total_json['large_int_replacements'] = {}  # 特殊大整数替换信息的字典
+        total_json['large_int_columns'] = []  # 特殊大整数替换的列名列表
         
         part1, part2 = file_name.rsplit('-', 1)
         print(part1, part2)
@@ -220,4 +213,5 @@ if __name__ == "__main__":
         df_preprocessed.to_csv(f'compress_data/csv/{file_name}-compress.csv', index=False)
         
         total_json_str_keys = dickWork.convert_keys_to_str(total_json)
+        # print(total_json_str_keys)
         dickWork.save_custom_txt_from_json(total_json_str_keys, file_name)
